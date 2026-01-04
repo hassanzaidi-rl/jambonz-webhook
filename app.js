@@ -3,16 +3,12 @@ import express from "express";
 const app = express();
 app.use(express.json());
 
-/**
- * Health check (optional)
- */
+// root route
 app.get("/", (req, res) => {
   res.json({ status: "ok", message: "Webhook server running" });
 });
 
-/**
- * AppEnv validation for jambonz
- */
+// AppEnv validation
 app.options("/outbound-hook", (req, res) => {
   res.json({
     "$schema": "http://json-schema.org/draft-07/schema#",
@@ -21,17 +17,15 @@ app.options("/outbound-hook", (req, res) => {
   });
 });
 
-/**
- * Outbound webhook for call control
- */
+// Outbound webhook (call control)
 app.post("/outbound-hook", (req, res) => {
   const from = req.body?.from || "";
   const to = req.body?.to?.number || "";
 
+  console.log("OUTBOUND /outbound-hook called:", req.body);
+
   if (!from || !to) {
-    return res.json({
-      actions: [{ verb: "hangup" }]
-    });
+    return res.json({ actions: [{ verb: "hangup" }] });
   }
 
   return res.json({
@@ -51,14 +45,13 @@ app.post("/outbound-hook", (req, res) => {
   });
 });
 
-/**
- * Call status webhook
- */
+// Call status webhook
 app.post("/call-status", (req, res) => {
-  console.log("Call status:", req.body);
-  res.json({ status: "received" });
+  console.log("CALL STATUS:", req.body);
+  res.json({ status: "ok" });
 });
 
+// Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Webhook server listening on ${PORT}`);
