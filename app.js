@@ -45,6 +45,15 @@ app.post("/outbound-hook", (req, res) => {
   });
 });
 
+app.get("/outbound-hook", (_req, res) => {
+  res.json({
+    "$schema":"http://json-schema.org/draft-07/schema#",
+    "type":"object",
+    "additionalProperties": true
+  });
+});
+
+
 // Call status webhook
 app.post("/call-status", (req, res) => {
   console.log("CALL STATUS:", req.body);
@@ -56,3 +65,4 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Webhook server listening on ${PORT}`);
 });
+
