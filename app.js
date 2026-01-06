@@ -1,3 +1,10 @@
+import express from "express";
+
+const app = express();
+
+// Jambonz sends JSON
+app.use(express.json());
+
 app.post("/outbound-hook", (req, res) => {
   const from = req.body?.from || "";
   const to_number = req.body?.to?.number || "";
@@ -35,4 +42,9 @@ app.post("/outbound-hook", (req, res) => {
   console.log("OUTBOUND webhook response (Jambonz format):", response);
 
   return res.json(response);
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Webhook server listening on port ${PORT}`);
 });
