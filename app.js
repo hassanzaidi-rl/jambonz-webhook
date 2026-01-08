@@ -1,50 +1,54 @@
 import express from "express";
+import http from "http";
 
+// build express app
 const app = express();
-
-// parse JSON bodies
 app.use(express.json());
-
-// Force HTTP/1.1 by setting Connection header
-app.use((req, res, next) => {
-  res.setHeader("Connection", "close");
-  next();
-});
 
 // Health check
 app.get("/", (_req, res) => {
-  res.json({ status: "ok", message: "Webhook server running" });
+  const body = JSON.stringify({ status: "ok", message: "Webhook server running" });
+  res.setHeader("Connection", "close");
+  res.setHeader("Content-Length", Buffer.byteLength(body));
+  res.setHeader("Content-Type", "application/json");
+  res.write(body);
+  res.end();
 });
 
-// Support GET on outbound-hook for UI/schema
+// GET schema support for outbound-hook
 app.get("/outbound-hook", (_req, res) => {
-  res.json({
+  const body = JSON.stringify({
     "$schema": "http://json-schema.org/draft-07/schema#",
     type: "object",
     additionalProperties: true
   });
+  res.setHeader("Connection", "close");
+  res.setHeader("Content-Length", Buffer.byteLength(body));
+  res.setHeader("Content-Type", "application/json");
+  res.write(body);
+  res.end();
 });
 
 // POST handler for outbound-hook
 app.post("/outbound-hook", (req, res) => {
   try {
-    // Extract call details
     const from = req.body?.from || "";
     const to_number = req.body?.to?.number || "";
 
-    // Immediately handle invalid cases
+    // immediate hangup if missing
     if (!from || !to_number) {
-      // immediate response with hangup instruction
-      res.status(200).json({
-        instructions: [
-          { hangup: {} }
-        ]
+      const hangupBody = JSON.stringify({
+        instructions: [ { hangup: {} } ]
       });
+      res.setHeader("Connection", "close");
+      res.setHeader("Content-Length", Buffer.byteLength(hangupBody));
+      res.setHeader("Content-Type", "application/json");
+      res.write(hangupBody);
+      res.end();
       return;
     }
 
-    // Build correct Jambonz response
-    const response = {
+    const responseObj = {
       instructions: [
         {
           dial: {
@@ -63,24 +67,29 @@ app.post("/outbound-hook", (req, res) => {
       ]
     };
 
-    // Respond immediately
-    res.status(200).json(response);
+    const body = JSON.stringify(responseObj);
+    res.setHeader("Connection", "close");
+    res.setHeader("Content-Length", Buffer.byteLength(body));
+    res.setHeader("Content-Type", "application/json");
+    res.write(body);
+    res.end();
 
-    // Async logging (does not delay response)
+    // log async
     setImmediate(() => {
-      console.log("OUTBOUND /outbound-hook called:", req.body);
-      console.log("OUTBOUND webhook response (Jambonz):", response);
+      console.log("OUTBOUND webhook body:", req.body);
+      console.log("OUTBOUND webhook response:", responseObj);
     });
 
   } catch (err) {
-    // In case of unexpected error, respond safely
-    res.status(200).json({
-      instructions: [
-        { hangup: {} }
-      ]
+    const hangupBody = JSON.stringify({
+      instructions: [ { hangup: {} } ]
     });
+    res.setHeader("Connection", "close");
+    res.setHeader("Content-Length", Buffer.byteLength(hangupBody));
+    res.setHeader("Content-Type", "application/json");
+    res.write(hangupBody);
+    res.end();
 
-    // Async log error
     setImmediate(() => {
       console.error("Error in outbound-hook:", err);
     });
@@ -89,17 +98,22 @@ app.post("/outbound-hook", (req, res) => {
 
 // POST handler for call-status webhook
 app.post("/call-status", (req, res) => {
-  // Respond immediately with OK
-  res.status(200).json({ status: "ok" });
+  const body = JSON.stringify({ status: "ok" });
+  res.setHeader("Connection", "close");
+  res.setHeader("Content-Length", Buffer.byteLength(body));
+  res.setHeader("Content-Type", "application/json");
+  res.write(body);
+  res.end();
 
-  // Async log so response is not delayed
   setImmediate(() => {
-    console.log("CALL STATUS webhook received:", req.body);
+    console.log("CALL STATUS webhook:", req.body);
   });
 });
 
-// start server
+// Use plain HTTP server to avoid chunked or HTTP/2
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Webhook server listening on port ${PORT}`);
+const server = http.createServer(app);
+
+server.listen(PORT, () => {
+  console.log(`Webhook server listening on port ${PORT} (HTTP/1.1 only)`);
 });
