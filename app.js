@@ -49,7 +49,8 @@ app.post("/outbound-hook", (req, res) => {
               {
                 type: "phone",
                 number: to_number,
-                trunk: "jambonz-sip-trunk" // exactly match your trunk name
+                trunk: "jambonz-sip-trunk",
+                carrier: "jambonz-sip-trunk"
               }
             ],
             timeout: 30
@@ -82,3 +83,4 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Webhook server listening on port ${PORT}`);
 });
+
