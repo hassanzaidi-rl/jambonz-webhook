@@ -14,37 +14,35 @@ app.get("/", (_req, res) => {
 app.get("/outbound-hook", (_req, res) => {
   res.json({
     "$schema": "http://json-schema.org/draft-07/schema#",
-    "type": "object",
-    "additionalProperties": true
+    type: "object",
+    additionalProperties: true
   });
 });
 
 // POST handler for outbound-hook
 app.post("/outbound-hook", (req, res) => {
   try {
-    console.log("OUTBOUND /outbound-hook called:", req.body);
-
+    // Extract call details
     const from = req.body?.from || "";
     const to_number = req.body?.to?.number || "";
 
+    // Immediately handle invalid cases
     if (!from || !to_number) {
-      console.log("Missing from or to — sending hangup");
-      return res.json({
+      // immediate response with hangup instruction
+      res.status(200).json({
         instructions: [
           { hangup: {} }
         ]
       });
+      return;
     }
 
-    // *** IMPORTANT: Set a valid callerId that your SIP provider accepts ***
-    // This should be a number you control and that is allowed on your trunk.
-    const callerId = from;
-
+    // Build correct Jambonz response
     const response = {
       instructions: [
         {
           dial: {
-            callerId: callerId,
+            callerId: from,
             target: [
               {
                 type: "phone",
@@ -59,23 +57,39 @@ app.post("/outbound-hook", (req, res) => {
       ]
     };
 
-    console.log("OUTBOUND webhook response (Jambonz):", response);
-    return res.json(response);
+    // Respond immediately before any logging
+    res.status(200).json(response);
+
+    // Asynchronous logging (does not delay response)
+    setImmediate(() => {
+      console.log("OUTBOUND /outbound-hook called:", req.body);
+      console.log("OUTBOUND webhook response (Jambonz):", response);
+    });
 
   } catch (err) {
-    console.error("Error in outbound-hook:", err);
-    return res.json({
+    // In case of unexpected error, respond safely
+    res.status(200).json({
       instructions: [
         { hangup: {} }
       ]
+    });
+
+    // async log of error
+    setImmediate(() => {
+      console.error("Error in outbound-hook:", err);
     });
   }
 });
 
 // POST handler for call-status webhook
 app.post("/call-status", (req, res) => {
-  console.log("CALL STATUS:", req.body);
-  res.json({ status: "ok" });
+  // Respond immediately with OK
+  res.status(200).json({ status: "ok" });
+
+  // Async log so response is not delayed
+  setImmediate(() => {
+    console.log("CALL STATUS webhook received:", req.body);
+  });
 });
 
 // start server
@@ -83,4 +97,3 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Webhook server listening on port ${PORT}`);
 });
-
