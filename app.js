@@ -5,6 +5,12 @@ const app = express();
 // parse JSON bodies
 app.use(express.json());
 
+// Force HTTP/1.1 by setting Connection header
+app.use((req, res, next) => {
+  res.setHeader("Connection", "close");
+  next();
+});
+
 // Health check
 app.get("/", (_req, res) => {
   res.json({ status: "ok", message: "Webhook server running" });
@@ -57,10 +63,10 @@ app.post("/outbound-hook", (req, res) => {
       ]
     };
 
-    // Respond immediately before any logging
+    // Respond immediately
     res.status(200).json(response);
 
-    // Asynchronous logging (does not delay response)
+    // Async logging (does not delay response)
     setImmediate(() => {
       console.log("OUTBOUND /outbound-hook called:", req.body);
       console.log("OUTBOUND webhook response (Jambonz):", response);
@@ -74,7 +80,7 @@ app.post("/outbound-hook", (req, res) => {
       ]
     });
 
-    // async log of error
+    // Async log error
     setImmediate(() => {
       console.error("Error in outbound-hook:", err);
     });
