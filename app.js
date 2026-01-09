@@ -5,90 +5,101 @@ import http from "http";
 const app = express();
 app.use(express.json());
 
-// Health check
+/**
+ * Health check
+ */
 app.get("/", (_req, res) => {
-  const body = JSON.stringify({ status: "ok", message: "Webhook server running" });
-  res.setHeader("Connection", "close");
-  res.setHeader("Content-Length", Buffer.byteLength(body));
+  const body = JSON.stringify({
+    status: "ok",
+    message: "Webhook server running"
+  });
+
   res.setHeader("Content-Type", "application/json");
-  res.write(body);
-  res.end();
+  res.setHeader("Content-Length", Buffer.byteLength(body));
+  res.setHeader("Connection", "close");
+  res.end(body);
 });
 
-// GET schema support for outbound-hook
+/**
+ * GET schema support for outbound-hook
+ */
 app.get("/outbound-hook", (_req, res) => {
   const body = JSON.stringify({
     "$schema": "http://json-schema.org/draft-07/schema#",
     type: "object",
     additionalProperties: true
   });
-  res.setHeader("Connection", "close");
-  res.setHeader("Content-Length", Buffer.byteLength(body));
+
   res.setHeader("Content-Type", "application/json");
-  res.write(body);
-  res.end();
+  res.setHeader("Content-Length", Buffer.byteLength(body));
+  res.setHeader("Connection", "close");
+  res.end(body);
 });
 
-// POST handler for outbound-hook
+/**
+ * POST handler for outbound-hook
+ * IMPORTANT:
+ * - NO carrier
+ * - NO trunk
+ * - NO gateway
+ * - PSTN routing is inferred automatically
+ */
 app.post("/outbound-hook", (req, res) => {
   try {
-    const from = req.body?.from || "";
-    const to_number = req.body?.to?.number || "";
+    const from = req.body?.from;
+    const to = req.body?.to?.number;
 
-    // immediate hangup if missing
-    if (!from || !to_number) {
-      const hangupBody = JSON.stringify({
-        instructions: [ { hangup: {} } ]
+    // hard fail if invalid payload
+    if (!from || !to) {
+      const body = JSON.stringify({
+        instructions: [{ hangup: {} }]
       });
-      res.setHeader("Connection", "close");
-      res.setHeader("Content-Length", Buffer.byteLength(hangupBody));
+
       res.setHeader("Content-Type", "application/json");
-      res.write(hangupBody);
-      res.end();
-      return;
+      res.setHeader("Content-Length", Buffer.byteLength(body));
+      res.setHeader("Connection", "close");
+      return res.end(body);
     }
 
-    const responseObj = {
+    const response = {
       instructions: [
         {
           dial: {
             callerId: from,
+            timeout: 30,
             target: [
               {
                 type: "phone",
-                number: to_number,
-                trunk: "jambonz-sip-trunk",
-                carrier: "jambonz-sip-trunk"
+                number: to
               }
-            ],
-            timeout: 30
+            ]
           }
         }
       ]
     };
 
-    const body = JSON.stringify(responseObj);
-    res.setHeader("Connection", "close");
-    res.setHeader("Content-Length", Buffer.byteLength(body));
-    res.setHeader("Content-Type", "application/json");
-    res.write(body);
-    res.end();
+    const body = JSON.stringify(response);
 
-    // log async
+    res.setHeader("Content-Type", "application/json");
+    res.setHeader("Content-Length", Buffer.byteLength(body));
+    res.setHeader("Connection", "close");
+    res.end(body);
+
+    // async logging
     setImmediate(() => {
-      console.log("OUTBOUND webhook body:", req.body);
-      console.log("OUTBOUND webhook response:", responseObj);
+      console.log("OUTBOUND webhook request:", req.body);
+      console.log("OUTBOUND webhook response:", response);
     });
 
   } catch (err) {
-    const hangupBody = JSON.stringify({
-      instructions: [ { hangup: {} } ]
+    const body = JSON.stringify({
+      instructions: [{ hangup: {} }]
     });
-    res.setHeader("Connection", "close");
-    res.setHeader("Content-Length", Buffer.byteLength(hangupBody));
+
     res.setHeader("Content-Type", "application/json");
-    res.write(hangupBody);
-    res.end();
+    res.setHeader("Content-Length", Buffer.byteLength(body));
+    res.setHeader("Connection", "close");
+    res.end(body);
 
     setImmediate(() => {
       console.error("Error in outbound-hook:", err);
@@ -96,24 +107,26 @@ app.post("/outbound-hook", (req, res) => {
   }
 });
 
-// POST handler for call-status webhook
+/**
+ * Call status webhook
+ */
 app.post("/call-status", (req, res) => {
   const body = JSON.stringify({ status: "ok" });
-  res.setHeader("Connection", "close");
-  res.setHeader("Content-Length", Buffer.byteLength(body));
+
   res.setHeader("Content-Type", "application/json");
-  res.write(body);
-  res.end();
+  res.setHeader("Content-Length", Buffer.byteLength(body));
+  res.setHeader("Connection", "close");
+  res.end(body);
 
   setImmediate(() => {
     console.log("CALL STATUS webhook:", req.body);
   });
 });
 
-// Use plain HTTP server to avoid chunked or HTTP/2
+// Force HTTP/1.1 (no chunked, no HTTP/2)
 const PORT = process.env.PORT || 3000;
 const server = http.createServer(app);
 
 server.listen(PORT, () => {
-  console.log(`Webhook server listening on port ${PORT} (HTTP/1.1 only)`);
+  console.log(`Webhook server listening on port ${PORT} (HTTP/1.1)`);
 });
