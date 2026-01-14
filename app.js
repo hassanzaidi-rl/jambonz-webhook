@@ -1,5 +1,5 @@
-import express from "express";
-import http from "http";
+const express = require("express");
+const http = require("http");
 
 const app = express();
 app.use(express.json());
@@ -7,7 +7,7 @@ app.use(express.json());
 /**
  * Health check
  */
-app.get("/", (_req, res) => {
+app.get("/", (req, res) => {
   res.status(200).json({
     status: "ok",
     message: "Webhook server running"
@@ -15,7 +15,7 @@ app.get("/", (_req, res) => {
 });
 
 /**
- * Jambonz Call Control Webhook (OUTBOUND)
+ * Jambonz OUTBOUND call control webhook
  */
 app.post("/outbound-hook", (req, res) => {
   const response = {
@@ -35,10 +35,10 @@ app.post("/outbound-hook", (req, res) => {
     ]
   };
 
-  console.log("JAMBONZ OUTBOUND HOOK PAYLOAD:", req.body);
-  console.log("JAMBONZ RESPONSE:", response);
+  console.log("JAMBONZ OUTBOUND HOOK REQUEST:", req.body);
+  console.log("JAMBONZ OUTBOUND HOOK RESPONSE:", response);
 
-  return res.status(200).json(response);
+  res.status(200).json(response);
 });
 
 /**
@@ -50,11 +50,9 @@ app.post("/call-status", (req, res) => {
 });
 
 /**
- * Force HTTP/1.1
+ * Start server (Render compatible)
  */
 const PORT = process.env.PORT || 3000;
-const server = http.createServer(app);
-
-server.listen(PORT, () => {
+http.createServer(app).listen(PORT, () => {
   console.log(`Webhook server listening on port ${PORT}`);
 });
